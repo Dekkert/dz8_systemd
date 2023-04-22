@@ -113,9 +113,68 @@ tail -f /var/log/messages
 ```
 
 Ссылка на репозиторий с Vagrnatfile и скриптами:
-
+https://github.com/Dekkert/dz8_systemd/tree/master/httpd
 
 2.	Из репозитория epel установить spawn-fcgi и переписать init-скрипт на unit-файл (имя service должно называться так же: spawn-fcgi).
 
+Устанавливаем spawn-fcgi и необходимые для него пакеты:
+```bash
+yum install epel-release -y && yum install spawn-fcgi php php-cli mod_fcgid httpd -y
+```
+/etc/rc.d/init.d/spawn-fcgi - cам Init скрипт, которýй будем переписывать
 
+Но перед этим необходимо раскомментировать строки с переменными в
+/etc/sysconfig/spawn-fcgi
 
+Он должен получиться следующего вида:
+
+```bash
+cat /etc/sysconfig/spawn-fcgi
+# You must set some working options before the "spawn-fcgi" service will work.
+# If SOCKET points to a file, then this file is cleaned up by the init script.
+#
+# See spawn-fcgi(1) for all possible options.
+#
+# Example :
+SOCKET=/var/run/php-fcgi.sock
+OPTIONS="-u apache -g apache -s $SOCKET -S -M 0600 -C 32 -F 1 -- /usr/bin/php-cgi"
+```
+
+А сам юнит файл будет примерно следующего вида:
+
+```bash
+сat /etc/systemd/system/spawn-fcgi.service
+[Unit]
+Description=Spawn-fcgi startup service by Otus
+After=network.target
+
+[Service]
+Type=simple
+PIDFile=/var/run/spawn-fcgi.pid
+EnvironmentFile=/etc/sysconfig/spawn-fcgi
+ExecStart=/usr/bin/spawn-fcgi -n $OPTIONS
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Убеждаемся что все успешно работает:
+
+```bash
+systemctl start spawn-fcgi
+systemctl status spawn-fcgi
+```
+Ссылка на репозиторий с Vagrnatfile и скриптами:
+https://github.com/Dekkert/dz8_systemd/tree/master/spawn
+
+ 3.Дополнить unit-файл httpd (он же apache) возможностью запустить несколько инстансов сервера с разными конфигурационными файлами.
+ 
+Ссылка на vargrantfile и скрипты:
+https://github.com/Dekkert/dz8_systemd/tree/master/httpd
+
+После разворачивании vm можно проверить, что всё поднялось корректно командой
+```bash
+systemctl status httpd@httpd1.service
+systemctl status httpd@httpd2.service
+```
